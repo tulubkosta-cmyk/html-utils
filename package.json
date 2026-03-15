@@ -1,0 +1,8 @@
+{
+  "name": "html-utils",
+  "version": "1.0.0",
+  "description": "Утилиты для работы с HTML: извлечение тегов, атрибутов, очистка, экранирование",
+  "author": "Morph Team",
+  "main": "html_utils.morph",
+  "dependencies": []
+}

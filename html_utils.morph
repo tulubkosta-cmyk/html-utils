@@ -1,0 +1,188 @@
+# html_utils.morph - библиотека для работы с HTML
+# Версия 1.0.0
+
+# ---------- Вспомогательные функции ----------
+def str_find(s, sub, start=0):
+    """Возвращает индекс первого вхождения подстроки sub в строке s, начиная с start, или -1."""
+    len_s = len(s)
+    len_sub = len(sub)
+    i = start
+    while i <= len_s - len_sub:
+        if s[i:i+len_sub] == sub:
+            return i
+        i = i + 1
+    return -1
+
+def str_sub(s, start, end):
+    """Возвращает подстроку s[start:end]."""
+    result = ""
+    i = start
+    while i < end:
+        result = result + s[i]
+        i = i + 1
+    return result
+
+def str_replace_all(s, old, new):
+    """Заменяет все вхождения old на new."""
+    result = ""
+    i = 0
+    len_s = len(s)
+    len_old = len(old)
+    while i < len_s:
+        if s[i:i+len_old] == old:
+            result = result + new
+            i = i + len_old
+        else:
+            result = result + s[i]
+            i = i + 1
+    return result
+
+# ---------- Основные функции ----------
+
+def html_get_tags(html, tag):
+    """
+    Возвращает список содержимого всех тегов с именем tag (без учёта вложенности).
+    Пример: html_get_tags("<div>a</div><div>b</div>", "div") -> ["a", "b"]
+    """
+    result = []
+    start_tag = "<" + tag
+    end_tag = "</" + tag + ">"
+    i = 0
+    len_html = len(html)
+    while i < len_html:
+        pos = str_find(html, start_tag, i)
+        if pos == -1:
+            break
+        pos_end_tag = str_find(html, ">", pos)
+        if pos_end_tag == -1:
+            break
+        content_start = pos_end_tag + 1
+        pos_close = str_find(html, end_tag, content_start)
+        if pos_close == -1:
+            break
+        content = str_sub(html, content_start, pos_close)
+        result = result + [content]
+        i = pos_close + len(end_tag)
+    return result
+
+def html_get_attr(html, tag, attr):
+    """
+    Возвращает список значений атрибута attr для всех тегов tag.
+    Пример: html_get_attr('<div class="a"></div><div class="b"></div>', "div", "class") -> ["a", "b"]
+    """
+    result = []
+    start_tag = "<" + tag
+    i = 0
+    len_html = len(html)
+    while i < len_html:
+        pos = str_find(html, start_tag, i)
+        if pos == -1:
+            break
+        pos_end_tag = str_find(html, ">", pos)
+        if pos_end_tag == -1:
+            break
+        tag_part = str_sub(html, pos, pos_end_tag)
+        attr_str = " " + attr + "="
+        pos_attr = str_find(tag_part, attr_str)
+        if pos_attr != -1:
+            val_start = pos_attr + len(attr_str)
+            if val_start < len(tag_part):
+                quote = tag_part[val_start]
+                if quote == '"' or quote == "'":
+                    val_end = str_find(tag_part, quote, val_start + 1)
+                    if val_end != -1:
+                        value = str_sub(tag_part, val_start + 1, val_end)
+                        result = result + [value]
+                else:
+                    val_end = val_start
+                    while val_end < len(tag_part) and tag_part[val_end] != ' ' and tag_part[val_end] != '>':
+                        val_end = val_end + 1
+                    value = str_sub(tag_part, val_start, val_end)
+                    result = result + [value]
+        i = pos_end_tag + 1
+    return result
+
+def html_strip_tags(html):
+    """Удаляет все HTML-теги, оставляя только текст."""
+    result = ""
+    in_tag = False
+    i = 0
+    len_html = len(html)
+    while i < len_html:
+        ch = html[i]
+        if ch == '<':
+            in_tag = True
+        elif ch == '>':
+            in_tag = False
+        else:
+            if not in_tag:
+                result = result + ch
+        i = i + 1
+    return result
+
+def html_escape(text):
+    """Экранирует специальные символы для использования в HTML."""
+    result = ""
+    i = 0
+    len_text = len(text)
+    while i < len_text:
+        ch = text[i]
+        if ch == '&':
+            result = result + "&amp;"
+        elif ch == '<':
+            result = result + "&lt;"
+        elif ch == '>':
+            result = result + "&gt;"
+        elif ch == '"':
+            result = result + "&quot;"
+        elif ch == "'":
+            result = result + "&#39;"
+        else:
+            result = result + ch
+        i = i + 1
+    return result
+
+def html_unescape(text):
+    """Заменяет HTML-сущности на соответствующие символы (простейшая реализация)."""
+    result = text
+    result = str_replace_all(result, "&amp;", "&")
+    result = str_replace_all(result, "&lt;", "<")
+    result = str_replace_all(result, "&gt;", ">")
+    result = str_replace_all(result, "&quot;", '"')
+    result = str_replace_all(result, "&#39;", "'")
+    return result
+
+def html_to_text(html):
+    """Преобразует HTML в простой текст (удаляет теги, заменяет <br> на перевод строки)."""
+    text = html_strip_tags(html)
+    # Заменяем <br> и <br/> на \n (их удалил strip_tags, нужно восстанавливать)
+    # Проще сначала заменить <br> на \n, потом удалить остальные теги.
+    # Сделаем отдельную реализацию.
+    result = ""
+    in_tag = False
+    i = 0
+    len_html = len(html)
+    while i < len_html:
+        ch = html[i]
+        if ch == '<':
+            # проверим, не br ли это
+            if html[i:i+4] == "<br>" or html[i:i+5] == "<br/>":
+                result = result + "\n"
+                if html[i:i+4] == "<br>":
+                    i = i + 4
+                else:
+                    i = i + 5
+                continue
+            else:
+                in_tag = True
+                i = i + 1
+                continue
+        elif ch == '>':
+            in_tag = False
+            i = i + 1
+            continue
+        else:
+            if not in_tag:
+                result = result + ch
+            i = i + 1
+    return result
